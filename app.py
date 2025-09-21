@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 
 # Load model
-model = joblib.load("models/sleep_disorder_model.pkl")
+model = joblib.load("models/sleep_disorder_pipeline.joblib")
 
 st.title("AI Sleep Disorder Classifier")
 
