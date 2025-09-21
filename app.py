@@ -1,40 +1,44 @@
 import streamlit as st
 import pandas as pd
-import joblib
+import numpy as np
+import joblib, json
+from pathlib import Path
 
-# Load model
-model = joblib.load("models/sleep_disorder_pipeline.joblib")
+st.set_page_config(page_title="Sleep Disorder Classifier", layout="centered")
+st.title("Sleep Disorder Classifier")
+st.caption("Predict Insomnia / Sleep Apnea / None")
 
-st.title("AI Sleep Disorder Classifier")
+MODEL_PATH = Path("models/sleep_disorder_pipeline.joblib")
+COLS_PATH = Path("models/feature_columns.json")
 
-# User input form
-age = st.number_input("Age", 18, 100, 30)
-gender = st.selectbox("Gender", ["Male", "Female"])
-occupation = st.selectbox("Occupation", ["Doctor", "Engineer", "Sales Representative", "Nurse", "Teacher", "Software Engineer"])
-sleep_duration = st.number_input("Sleep Duration (hours)", 3.0, 12.0, 6.0)
-stress = st.slider("Stress Level", 1, 10, 5)
-activity = st.slider("Physical Activity Level", 0, 100, 50)
-heart_rate = st.number_input("Heart Rate", 40, 120, 75)
-steps = st.number_input("Daily Steps", 1000, 20000, 5000)
-bmi = st.selectbox("BMI Category", ["Normal", "Overweight", "Obese", "Underweight"])
+# Hard stop if files missing
+if not MODEL_PATH.exists():
+    st.error("Missing model file: models/sleep_disorder_pipeline.joblib")
+    st.stop()
+if not COLS_PATH.exists():
+    st.error("Missing columns file: models/feature_columns.json")
+    st.stop()
 
-# Encode input (simple manual mapping)
-gender_map = {"Male": 1, "Female": 0}
-bmi_map = {"Underweight": 0, "Normal": 1, "Overweight": 2, "Obese": 3}
-occupation_map = {name: i for i, name in enumerate(["Doctor", "Engineer", "Sales Representative", "Nurse", "Teacher", "Software Engineer"])}
+pipe = joblib.load(MODEL_PATH)
+FEATURE_COLUMNS = json.loads(COLS_PATH.read_text())
 
-input_df = pd.DataFrame([[
-    age, gender_map[gender], occupation_map[occupation], sleep_duration,
-    0,  # placeholder for Quality of Sleep (unused)
-    activity, stress, bmi_map[bmi], 
-    0,  # placeholder for BP (unused)
-    heart_rate, steps
-]], columns=[
-    "Age", "Gender", "Occupation", "Sleep Duration", 
-    "Quality of Sleep", "Physical Activity Level", "Stress Level", 
-    "BMI Category", "Blood Pressure", "Heart Rate", "Daily Steps"
-])
+# Simple choices (handle_unknown='ignore' allows unseen categories)
+gender_choices = ["Male", "Female"]
+bmi_choices = ["Underweight", "Normal", "Overweight", "Obese"]
 
-# Prediction
-pred = model.predict(input_df)[0]
-st.write("### Predicted Sleep Disorder:", pred)
+# Occupation as free text to avoid mismatch; unseen OK due to handle_unknown='ignore'
+with st.form("form"):
+    col1, col2 = st.columns(2)
+    with col1:
+        age = st.number_input("Age", 18, 100, 30)
+        gender = st.selectbox("Gender", gender_choices)
+        occupation = st.text_input("Occupation", value="Software Engineer")
+        sleep_duration = st.number_input("Sleep Duration (hours)", 3.0, 12.0, 6.5, 0.1)
+        quality_of_sleep = st.slider("Quality of Sleep (1–10)", 1, 10, 7)
+        physical_activity = st.slider("Physical Activity Level (0–100)", 0, 100, 50)
+    with col2:
+        stress_level = st.slider("Stress Level (1–10)", 1, 10, 5)
+        bmi_category = st.selectbox("BMI Category", bmi_choices)
+        heart_rate = st.number_input("Heart Rate (bpm)", 40, 200, 75)
+        daily_steps = st.number_input("Daily Steps", 0, 50000, 6000, 100)
+        bp_sys = st.number_input("Systoli
