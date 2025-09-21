@@ -41,4 +41,47 @@ with st.form("form"):
         bmi_category = st.selectbox("BMI Category", bmi_choices)
         heart_rate = st.number_input("Heart Rate (bpm)", 40, 200, 75)
         daily_steps = st.number_input("Daily Steps", 0, 50000, 6000, 100)
-        bp_sys = st.number_input("Systoli
+        bp_sys = st.number_input("Systolic BP", 70, 250, 120)
+        bp_dia = st.number_input("Diastolic BP", 40, 150, 80)
+
+    submitted = st.form_submit_button("Predict")
+
+if submitted:
+    # Build input using TRAINING FEATURE NAMES
+    row = {
+        "Gender": gender,
+        "Age": age,
+        "Occupation": occupation,
+        "Sleep Duration": float(sleep_duration),
+        "Quality of Sleep": int(quality_of_sleep),
+        "Physical Activity Level": int(physical_activity),
+        "Stress Level": int(stress_level),
+        "BMI Category": bmi_category,
+        "Heart Rate": int(heart_rate),
+        "Daily Steps": int(daily_steps),
+        "BP_Systolic": float(bp_sys),
+        "BP_Diastolic": float(bp_dia),
+    }
+
+    input_df = pd.DataFrame([row])
+
+    # Reindex to exact training columns (add missing as NaN, drop extras)
+    input_df = input_df.reindex(columns=FEATURE_COLUMNS)
+
+    # Optional: show diagnostic if names differ
+    missing = [c for c in FEATURE_COLUMNS if c not in row]
+    extra = [c for c in row if c not in FEATURE_COLUMNS]
+    if missing or extra:
+        st.warning(f"Adjusted columns. Missing: {missing} | Extra: {extra}")
+
+    try:
+        pred = pipe.predict(input_df)[0]
+        st.success(f"Predicted Sleep Disorder: {pred}")
+
+        if hasattr(pipe.named_steps["model"], "predict_proba"):
+            classes = pipe.named_steps["model"].classes_
+            probs = pipe.predict_proba(input_df)[0]
+            st.write("Probabilities:")
+            st.dataframe(pd.DataFrame({"Class": classes, "Probability": probs}).set_index("Class"))
+    except Exception as e:
+        st.error(f"Prediction failed: {e}")
